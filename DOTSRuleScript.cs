@@ -11,6 +11,9 @@ using UnityEngine;
 
 namespace lLCroweTool.Test.DOTS
 {
+    //목적 : 기존의 MonoBehaviour를 사용하여 작업했던걸 DOTS로 작업할수 있을만큼 알아가기
+
+
     //https://github.com/Unity-Technologies/EntityComponentSystemSamples/tree/master/DOTS_Guide
     //DOTS//1. ECS, 2. JobSystem, 3. BurstSystem
     //메모리 많이씀 유니티에디터에서 2.5G, 비쥬얼스튜디오에서 2.5G 사용
@@ -67,12 +70,6 @@ namespace lLCroweTool.Test.DOTS
         public float2 vector2;
         public float3 vector3;
         public int index;
-
-
-        public static void Test(ref DOTSRuleData data)
-        {
-            data.index++;
-        }
     }
 
 
@@ -119,7 +116,7 @@ namespace lLCroweTool.Test.DOTS
 
 
 
-        private readonly TransformAspect transformAspect;
+        //private readonly TransformAspect transformAspect;
         //[Optional]//구성요소가 존재하는지 확인할수 있게 변함//다시확인해봐야됨//리드온리만
         private readonly RefRO<SpeedStructure> speed;
         private readonly RefRW<DOTSRuleData> dotsRuleData;
@@ -315,15 +312,19 @@ namespace lLCroweTool.Test.DOTS
     public partial struct NormalJob : IJobEntity
     {  
         public float deltaTime;
+        
+
         public void Execute(DOTSRuleAspect dOTSRuleAspect)
         {
             //moveToPositionAspect.CheckFunc(SystemAPI.Time.DeltaTime);//엑세스안됨
             dOTSRuleAspect.CheckFunc(deltaTime);//외부에서 설정해서 집어넣을것
         }
     }
+
+    
     //SystemAPI 잡처리
     [BurstCompile]
-    public partial struct SystemAPIIJob : IJobEntity
+    public partial struct SystemAPIIJob : IJobEntity 
     {
         //외부에서 랜덤값을 설정한뒤 가져와야지 랜덤으로 가져오지
         //한번돌때 계속가져오면 하나의 값만 반환하니 안됨
@@ -342,21 +343,37 @@ namespace lLCroweTool.Test.DOTS
         //외부에서 랜덤값을 설정한뒤 가져와야지 랜덤으로 가져오지
         //한번돌때 계속가져오면 하나의 값만 반환하니 안됨
 
+
+
+        //IJobEntity일시 지원되는 매개변수에 제한이 있음
+        //IComponentData
+        //ICleanupComponentData
+        //ISharedComponent
+        //Managed components
+        //Entity
+        //DynamicBuffer<T>
+        //IAspect
+        //int
+
+
+
+
+
         public void Execute(ref DOTSRuleData data)
         {
-            DOTSRuleData.Test(ref data);
+            
         }
     }
 
     [BurstCompile]
-    public partial struct TestIJob : IJobEntity
+    public partial struct TestIJob2 : IJobEntity
     {
         //외부에서 랜덤값을 설정한뒤 가져와야지 랜덤으로 가져오지
         //한번돌때 계속가져오면 하나의 값만 반환하니 안됨
 
         public void Execute(ref DOTSRuleData data)
         {
-            DOTSRuleData.Test(ref data);
+            
         }
     }
 
