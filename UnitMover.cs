@@ -50,7 +50,7 @@ namespace Assets.DOTS.DOTSTest
     }
 
     [BurstCompile]
-    public class UnitMoverEntity : SystemBase
+    public partial class UnitMoverEntity : SystemBase
     {
         private EntityQuery entityQuery;//캐싱
         protected override void OnCreate()

@@ -49,6 +49,7 @@ namespace lLCroweTool.Test.DOTS
         public Unity.Mathematics.Random random = new Unity.Mathematics.Random(1);
         public float min;
         public float max;
+        public int index;
 
         public Vector2 vector2;
         public Vector3 vector3;
@@ -65,6 +66,13 @@ namespace lLCroweTool.Test.DOTS
         public float max;
         public float2 vector2;
         public float3 vector3;
+        public int index;
+
+
+        public static void Test(ref DOTSRuleData data)
+        {
+            data.index++;
+        }
     }
 
 
@@ -83,6 +91,7 @@ namespace lLCroweTool.Test.DOTS
             data.targetPrefab = GetEntity(authoring.targetPrefab);
             data.max = authoring.max;
             data.min = authoring.min;
+            data.index = authoring.index;
             data.random = new(1);
             data.vector2 = authoring.vector2;
             data.vector3 = authoring.vector3;
@@ -98,9 +107,18 @@ namespace lLCroweTool.Test.DOTS
     //IAspect는 CPU에 가장 적합한 데이터레이아웃을 유지할수 있게 해주며 유지관리할수 있는 인터페이스를 제공
     public readonly partial struct DOTSRuleAspect : IAspect
     {
+        //7개의 파라미터값으로 제한되있음
+        //왜냐하면 SystemAPI, Entity.ForEach의 T1,T2같은 요소들이 7개로 제한 되있기 때문에
+        //여러개 쓸려면 여러 Aspect를 만들어 처리해주기
+        //SystemAPI를 내부에서 사용불가한 지역
+
         private readonly Entity entity;
         //Aspect구조는 적어도 하나 이상의 RefRO,RefRW 형식,
         //다른 IAspect를 집어넣어야됨//안넣으면 에러 뺵-
+
+
+
+
         private readonly TransformAspect transformAspect;
         //[Optional]//구성요소가 존재하는지 확인할수 있게 변함//다시확인해봐야됨//리드온리만
         private readonly RefRO<SpeedStructure> speed;
@@ -117,7 +135,6 @@ namespace lLCroweTool.Test.DOTS
         //private readonly DynamicBuffer<DOTSRuleData> dOTSRuleDatas;
 
         
-
 
 
         //SystemAPI를 IAspect와 IJob 종류들에서
@@ -138,6 +155,8 @@ namespace lLCroweTool.Test.DOTS
         public void CheckSystemAPIFunc(RefRW<RandomStructure> randomComponent)
         {
             dotsRuleData.ValueRW.random = randomComponent.ValueRO.random;
+
+            
         }
 
     }
@@ -174,23 +193,31 @@ namespace lLCroweTool.Test.DOTS
     //[UpdateBefore(typeof(MoveISystem))]//대상전에 업데이트하기
     //[UpdateInGroup(typeof(MoveISystem))]//업데이트를 그룹으로 묶음
     [BurstCompile]//버스트는 유니티의 잡시스템과 같이 작동되도록 설계 되있음.
+    //[RequireMatchingQueriesForUpdate]//시스템안에 쿼리가 비어있으면 업데이트를 안하게 만듬
     public partial struct DOTSRuleISystem : ISystem
     {
-        // We need type handles to access a chunk's
-        // component arrays and entity ID array.
         // It's generally good practice to cache queries and type handles
         // rather than re-retrieving them every update.
-        // 청크에 액세스하려면 핸들형식 이 필요
+
         // 컴포넌트 배열 및 엔티티 ID 배열입니다.
-        // 일반적으로 쿼리를 캐시하고 핸들을 입력하는 것이 좋습니다.
+
         //보다는 업데이트할 때마다 다시 검색합니다.?
-        //private EntityQuery myQuery;
+        // 일반적으로 쿼리를 캐시하고 핸들을 입력하는 것이 좋습니다.
+        private EntityQuery myQuery;
         //private ComponentTypeHandle<DOTSRuleData> DOTSRuleHandle;
         //private EntityTypeHandle entityHandle;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            EntityManager em = state.EntityManager;
+            em.CreateEntityQuery(typeof(LocalToWorld));
+            
+
+            //엔티티쿼리를 여기서 캐싱
+            //myQuery = GetEntityQuery(typeof(LocalToWorld));
+
+
             //var builder = new EntityQueryBuilder(Allocator.Temp);
             //builder.WithAll<DOTSRuleData>();
 
@@ -221,12 +248,14 @@ namespace lLCroweTool.Test.DOTS
             //구성 요소가 없는 새 도면요소를 작성합니다.//MonoBehavior를 생성한다보면 편함
             Entity entity = em.CreateEntity();
             em.AddComponent<DOTSRuleData>(entity);//비어있는 엔티티에 컴포넌트들을 집어넣음
+            
             //em.RemoveComponent<DOTSRuleData>(entity);//엔티티에서 특정컴포넌트 삭제
             //em.SetComponentData<DOTSRuleData>(entity, new());//엔티티에 특정 컴포넌트를 집어넣기
             //em.SetComponentEnabled<DOTSRuleData>(entity, false);//엔티티를 활성화, 비활성화시키기//IEnableableComponent 인터페이스가 필요함
             //DOTSRuleData dotsRulsData = em.GetComponentData<DOTSRuleData>(entity);//엔티티에서 특정 컴포넌트를 가져오기
             //bool isHas = em.HasComponent<DOTSRuleData>(entity);//엔티티에서 특정컴포넌트가 존재하는지
             em.DestroyEntity(entity);//엔티티파괴
+            
 
             //아키텍쳐를 정의
             //Allocator => NativeArray에 대한 할당 유형을 지정하는 데 사용
@@ -248,7 +277,10 @@ namespace lLCroweTool.Test.DOTS
             //이럴경우할수 있는건 단순히 로직을 분할하는것
             //SystemAPI관련한건 잡으로 주기전에 가져와서 세팅해주기
 
-            RefRW<RandomStructure> randomComponent = SystemAPI.GetSingletonRW<RandomStructure>();//초기에 한개씩있는건지, 베이킹되있는것중에 첫번쨰거를 가져오는건지
+
+            //초기에 한개씩있는건지, 베이킹되있는것중에 첫번쨰거를 가져오는건지
+            //따로 한개있는지 여러개 있는 함수도 존재. 첫번째거 가져옴
+            RefRW<RandomStructure> randomComponent = SystemAPI.GetSingletonRW<RandomStructure>();
             float deltaTime = SystemAPI.Time.DeltaTime;
 
 
@@ -301,5 +333,35 @@ namespace lLCroweTool.Test.DOTS
         {
             dOTSRuleAspect.CheckSystemAPIFunc(randomComponent);
         }
+    }
+
+    //테스트
+    [BurstCompile]
+    public partial struct TestIJob : IJobEntity
+    {
+        //외부에서 랜덤값을 설정한뒤 가져와야지 랜덤으로 가져오지
+        //한번돌때 계속가져오면 하나의 값만 반환하니 안됨
+
+        public void Execute(ref DOTSRuleData data)
+        {
+            DOTSRuleData.Test(ref data);
+        }
+    }
+
+    [BurstCompile]
+    public partial struct TestIJob : IJobEntity
+    {
+        //외부에서 랜덤값을 설정한뒤 가져와야지 랜덤으로 가져오지
+        //한번돌때 계속가져오면 하나의 값만 반환하니 안됨
+
+        public void Execute(ref DOTSRuleData data)
+        {
+            DOTSRuleData.Test(ref data);
+        }
+    }
+
+    public struct TagComponent : IComponentData
+    {
+
     }
 }
