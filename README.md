@@ -25,7 +25,9 @@ https://github.com/Unity-Technologies/EntityComponentSystemSamples/tree/master/D
 1. 2017년도 DOTS 작동원리에 비해 많이 바뀜. 
 2. 릴리즈에 쓰기엔 일반API처럼 간단하게 쓸수가 없음. 따로 추가연구&공부해야됨.
 3. 제대로 못쓸거 같음. 이해 안되는 구간이 좀 있음. 몇구간은 내부에서 두번이상 건너뛰어서 작동되는거 때문에 유추하기가 힘듬.
-
+4. 성능 위해서는 Isystem을 채택하고 작업하기. GC안 쌓이고 속도도 높으며, burst로 컴파일러 최적화도 가능하다.
+5. DOTS Guide 깃허브를 보는걸 추천. 지금 정리한건 필요한 종류만 빠르게 쓸려고 정리해놓은 상태이며 정확하지 않은게 존재.
+6. 메뉴얼을 무조건 봐라. 따로 정리를 해났지만 가이드라인을 안보고 현 글을 의존하는건 위험.
 ~~아 MonoBehaviour를 ECSMonoBehaviour같은 클래스를 상속받으면 자동적으로 처리하게 만들어달라~~
 
 
@@ -202,6 +204,7 @@ Mathf = math (System Math하고 이름이 같기때문에 소문자로 한듯)
 
 (따로 분리시 6개의 파일을 생성해야한다.)
 
+---
 ## 클래스 파일 안의 작성순서
 1. MonoBehaviour          => 기본적으로 유니티를 다루던 클래스//데이터생성해주기
 2. IComponentData         => 데이터만 존재하는 형태
@@ -216,127 +219,357 @@ Mathf = math (System Math하고 이름이 같기때문에 소문자로 한듯)
 
 + ### MonoBehaviour
 > 베이킹할 대상이다. 데이터만 선언해주기
+```C#
+public class DOTSRuleScript : MonoBehaviour
+{
+     public GameObject targetPrefab;
+     public Unity.Mathematics.Random random = new Unity.Mathematics.Random(1);
+     public float min;
+     public float max;
+
+     public Vector2 vector2;
+     public Vector3 vector3;
+}
+```
 
 + ### IComponentData
 > MonoBehavior안의 데이터를 Baker를 통해 집어넣는 데이터만 존재하는 형태이다. 함수쓰지 말기
+```C#
+public struct DOTSRuleData : IComponentData, IEnableableComponent
+{
+    public Entity targetPrefab;
+    public Unity.Mathematics.Random random;
+    public float min;
+    public float max;
+    
+    public float2 vector2;
+    public float3 vector3;
+}
+```
 
 + ### Baker
 > MonoBehavior안의 데이터를 IComponentData에 매핑하는 과정을 한다. 수동적으로 일일히 만듬
+> 모노비헤이비어에서 가진 걸 데이터에 가져와서 대입
+> 마지막에 컴포넌트 추가할때 Null이 가능한 객체는 불가
+```C#
+public class DOTSRuleBaker : Baker<DOTSRuleScript>
+{
+    /// <summary>
+    /// 베이킹할 객체를 들고옴
+    /// </summary>
+    /// <param name="authoring">만들 대상 MakingTarget</param>
+    public override void Bake(DOTSRuleScript authoring)
+    {
+        DOTSRuleData data = new DOTSRuleData();
+        data.targetPrefab = GetEntity(authoring.targetPrefab);
+        data.random = new(1);
+        data.max = authoring.max;
+        data.min = authoring.min;        
+        
+        data.vector2 = authoring.vector2;
+        data.vector3 = authoring.vector3;
+
+        //값형식만 가능//null이 가능한거는 불가
+        AddComponent(data);
+    }
+}
+```
 
 + ### IAspect
 > IComponentData가 데이터만 집어넣는다면 IAspect는 기능만 집어넣는다. (기능, 펑션, 메세지, 메소드)
-> 룰이 있다
+> IAspect는 CPU에 가장 적합한 데이터레이아웃을 유지할수 있게 해주며 유지관리할수 있는 인터페이스를 제공
+> IAspect는 시스템에서 컴포넌트 코드를 구성하고 쿼리를 단순화하는 데 유용.
+> 룰1) 파라미터값은 최대 7개로 제한. (T1, T2, ~~~, T7)(여러개 쓸려면 여러 다른 Aspect를 만들어  담아주기)
+> 룰2) RefRO//오직읽기 RefRW//읽기쓰기
+> 룰3) readonly partial
+> 룰4) SystemAPI를 내부에서 사용불가한 지역
+> 룰5) IAspect구조는 적어도 하나 이상의 RefRO,RefRW 형식, 다른 IAspect를 집어넣어야됨. 안넣으면 에러
+> 룰6) IAspect내부에서 SystemAPI.Time은 작동하지 않음 (고로 파라미터로 외부에서 받아와 캐싱을 권장)
+> 룰7) [ReadOnly] 밑에 처럼하면 RefRW => RefRO로 변함
+> 룰8) [Optional] 구성요소가 존재하는지 확인할수 있게 변함(리드온리)
+```C#
+public readonly partial struct DOTSRuleAspect : IAspect
+{
+    private readonly Entity entity;
+    private readonly TransformAspect transformAspect;
+    [Optional]//구성요소가 존재하는지 확인할수 있게 변함//리드온리만
+    //private readonly RefRO<SpeedStructure> speed;
+    private readonly RefRW<DOTSRuleData> dotsRuleData;
+    
+    public void CheckFunc(float deltaTime)
+    {
+        float3 dir = math.normalize(dotsRuleData.ValueRW.vector3 - transformAspect.Position);
+        float temp1 = speed.IsValid ? speed.ValueRO.speed : 1;
+        float temp2 = dotsRuleData.IsValid ? dotsRuleData.ValueRO.max : 1;
+        float temp = dotsRuleData.ValueRO.max;
+        transformAspect.Position += dir * deltaTime * temp;
+    }
 
+    public void CheckSystemAPIFunc(RefRW<RandomStructure> randomComponent)
+    {
+        dotsRuleData.ValueRW.random = randomComponent.ValueRO.random;
+    }
+}
+```
 
 + ### SystemBase, SystemI
 > 로직이 관리되는 구역이다.
-> 메인스레드에서 작동됨.
-> 
+> 룰1) partial
+> 룰2) 메인스레드에서 작동.
+> 이 구역에서 Job을 생성해서 처리 가능. (추천 Run, Schedule, ScheduleParallel)
+> state.EntityManager 안에는 GameObject의 함수들이 존재한다. Add, Remove, Set, Enalbe 등 (MonoBehavior. 에서 MonoBehavior()로 변경된느낌)
+> SetComponentEnabled는 컴폰너트를 추가 및 제거하는 것과 달리 구조적변화를 일으키지 않음.(성능에 문제)
+> ECS는 엔터티가 엔터티쿼리와 일치하는지 확인할 때 비활성화된 컴포넌트를 엔터티에 해당 컴포넌트가 없는 것처럼 처리
+> 엔티티 구조변경했을시 성능이 떨어짐. (Create, Destroy, Add, Remove)
 
+> state.EntityMaanger는 DOTS 특성으로 매니저에서 모든걸 가지며 모든걸 처리하는 과정을 담당함.
 
-
+> ### SystemBase (관리되는 구성요소)
+> 비관리 구성요소와 달리 관리 구성요소는 모든 유형의 속성을 저장할 수 있음. 
+> 저장 및 액세스에 더 많은 리소스를 사용하고 다음과 같은 제한사항이 있음.
+> Job에서는 액세스할 수 없음.
+> 버스트 컴파일 코드 에서는 사용할 수 없음.
+> 가비지 수집이 필요합니다.
+> 직렬화를 위해 매개변수가 없는 생성자를 포함해야함.
 
 > ### System이벤트 생명주기
 
 ![SystemEventOrder](https://user-images.githubusercontent.com/44671731/206775274-e1c8bda1-63fc-47bf-9344-9b37f446eb25.png)
 
 1. OnCreate: ECS가 시스템에서 생성될때 호출
-2. OnStartRunning: Called before the first call to OnUpdate and whenever a system resumes running.
-3. OnUpdate: Called every frame as long as the system has work to do. For more information on what determines when a system has work to do, see ShouldRunSystem.
-4. OnStopRunning: Called before OnDestroy. Also called whenever the system stops running, which happens if no entities match the system's RequireForUpdate, or if you've set the system's Enabledproperty to false. If you've not specified a RequireForUpdate, the system runs continuously unless disabled or destroyed.
+2. OnStartRunning: OnUpdate에 대한 첫 번째 호출 전과 시스템 실행이 재개될 때마다 호출
+3. OnUpdate: 모든 프레임 시스템에서 할일이 있으면 호출. 자세한 내용은 DOTS가이드 참조
+4. OnStopRunning: On Destroy 전에 호출되었습니다. 시스템의 RequireForUpdate와 일치하는 엔티티가 없거나 시스템의 Enabled 속성을 false로 설정한 경우 발생하는 시스템 실행이 중지될 때도 호출됩니다. RequireForUpdate를 지정하지 않은 경우 비활성화하거나 삭제하지 않는 한 시스템이 계속 실행됩니다.
 5. OnDestroy: ECS가 시스템에서 파괴될때 호출
 
+```C#
+//[UpdateAfter(typeof(MoveISystem))]//대상후애 업데이트하기
+//[UpdateBefore(typeof(MoveISystem))]//대상전에 업데이트하기
+//[UpdateInGroup(typeof(MoveISystem))]//업데이트를 그룹으로 묶음
+[BurstCompile]//버스트는 유니티의 잡시스템과 같이 작동되도록 설계 되있음.
+//[RequireMatchingQueriesForUpdate]//시스템안에 쿼리가 비어있으면 업데이트를 안하게 만듬
+public partial struct DOTSRuleISystem : ISystem
+{
+    //컴포넌트 배열 및 엔티티 ID 배열입니다.
+    //보다는 업데이트할 때마다 다시 검색합니다.?
+    //일반적으로 쿼리를 캐시하고 핸들을 입력하는 것이 좋습니다.
+    private EntityQuery myQuery;//쿼리
+    //private ComponentTypeHandle<DOTSRuleData> dOTSRuleHandle;
+    //private EntityTypeHandle entityHandle;
 
-+ ### Job, IJobEntity  IJobChunck
+    [BurstCompile]
+    public void OnCreate(ref SystemState state)
+    {
+        EntityManager em = state.EntityManager;
+        em.CreateEntityQuery(typeof(LocalToWorld));
+
+        //엔티티쿼리를 여기서 캐싱
+        //myQuery = GetEntityQuery(typeof(LocalToWorld));
+
+        //var builder = new EntityQueryBuilder(Allocator.Temp);
+        //builder.WithAll<DOTSRuleData>();
+
+        //myQuery = state.GetEntityQuery(builder);
+        //dOTSRuleHandle = state.GetComponentTypeHandle<DOTSRuleData>();
+        //EntityTypeHandle entityHandle = state.GetEntityTypeHandle();
+    }
+
+    [BurstCompile]
+    public void OnDestroy(ref SystemState state){}
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
+    {
+        //각 업데이트에서 사용하기 전에 유형 핸들을 업데이트를 해야됨
+        //DOTSRuleHandle.Update(ref state);
+        //entityHandle.Update(ref state);
+
+
+        //여러 엔터티의 구성 요소를 가져오고 설정하려면 쿼리와 일치하는 모든 엔터티를 반복하는 것이 가장 좋다.
+        //현 시스템이 속한 월드의 엔티티 관리자입니다.
+        EntityManager em = state.EntityManager;//게임오브젝트와 동일//중앙관리
+
+        //구성 요소가 없는 새 도면요소를 작성합니다.//MonoBehavior를 생성한다보면 편함
+        Entity entity = em.CreateEntity();
+        em.AddComponent<DOTSRuleData>(entity);//비어있는 엔티티에 컴포넌트들을 집어넣음
+        //em.RemoveComponent<DOTSRuleData>(entity);//엔티티에서 특정컴포넌트 삭제
+        //em.SetComponentData<DOTSRuleData>(entity, new());//엔티티에 특정 컴포넌트를 집어넣기
+        //em.SetComponentEnabled<DOTSRuleData>(entity, false);//엔티티를 활성화, 비활성화시키기//IEnableableComponent 인터페이스가 필요함
+        //DOTSRuleData dotsRulsData = em.GetComponentData<DOTSRuleData>(entity);//엔티티에서 특정 컴포넌트를 가져오기
+        //bool isHas = em.HasComponent<DOTSRuleData>(entity);//엔티티에서 특정컴포넌트가 존재하는지
+        em.DestroyEntity(entity);//엔티티파괴
+
+
+        //아키텍쳐를 정의//여기도 캐싱할 수있으면 하는게 괜찮아보임
+        //프리팹생성과 비슷//Allocator => NativeArray에 대한 할당 유형을 지정하는 데 사용
+        //var types = new NativeArray<ComponentType>(3, Allocator.Temp);//3크기에 임시할당
+        //types[0] = ComponentType.ReadWrite<DOTSRuleData>();
+        //EntityArchetype archetype = em.CreateArchetype(types);//아키텍쳐 생성
+
+        //// 앞에 정의한 아키텍쳐를 사용하여 두 번째 엔티티를 작성합니다.
+        //Entity entity2 = em.CreateEntity(archetype);
+
+        //// 두번째 엔티티를 사용해서 새로운 세번째 엔티티를 생성
+        //Entity entity3 = em.Instantiate(entity2);
+
+
+        //경쟁조건에 문제가 생길수 있다
+        //각각의 스레드가 동일한구간에 엑세스하고 수정할려고 하기 떄문
+        //이럴 경우 할수 있는건 단순히 로직을 분할하는것
+        //SystemAPI관련한건 잡으로 주기전에 가져와서 세팅해주기
+
+        //초기에 한개씩있는건지, 베이킹되있는것중에 첫번쨰거를 가져오는건지
+        //따로 한개있는지 여러개 있는 함수도 존재. 첫번째거 가져옴
+        RefRW<RandomStructure> randomComponent = SystemAPI.GetSingletonRW<RandomStructure>();
+        float deltaTime = SystemAPI.Time.DeltaTime;
+
+        //JobHandle: 예약된 작업에 접근하기 위한 핸들입니다. JobHandle인스턴스를 사용하여 작업 간의 종속성을 지정할 수도 있습니다.
+        JobHandle jobHandle = new NormalJob
+        {
+            deltaTime = deltaTime
+        }.ScheduleParallel(state.Dependency);
+
+        // Complete() 메서드는 작업이 수행될 때까지 반환되지 않습니다.
+        // 핸들이 실행을 마쳤습니다.
+        // 경우에 따라 작업이 완료되었을 수 있습니다.
+        // 처리에서 Complete()를 호출하기 전에 실행합니다.
+        // 어느 쪽이든, 메인 스레드는 다음과 같이 대기합니다.
+        // 작업이 완료될 때까지 호출을 완료합니다.
+        jobHandle.Complete();
+
+        new SystemAPIIJob
+        {
+            randomComponent = randomComponent
+        }.Run();//메인스레드에서 처리
+
+        //.Run();//작업이 실행하면 이 작업이 실행되는 메인스레드에서 코드를 실행
+        //.Schedule();멀티 단일스레드
+        //.ScheduleParallel();//멀티 병렬로 예약, 여러스레드에서 코드를 실행//100개를 줫을때 스레드가 10개면 10개씩 일감을 줌
+    }
+}
+```
+
++ ### IJob, IJobEntity(추천), IJobChunck
 > Job시스템에 일감을 주기 위한 형태
-> 멀티스
+> 이리저리봐도 JobEntity가 제일 괜찮아보임
+> 룰1) 파라미터값은 최대 7개로 제한. (T1, T2, ~~~, T7)(여러개 쓸려면 여러 다른 Aspect를 만들어  담아주기)
+> 룰2) Job 내부에서 SystemAPI.Time은 작동하지 않음 (고로 파라미터로 외부에서 받아와 캐싱을 권장)
+> 룰3) partial
+> 룰4) SystemAPI를 내부에서 사용불가한 지역
+> 성능을 더 원하면 IJobChunk를 쓸것. struct형태가 16kb 초과되면 자체적으로 돌아가면서 힙영역에 들어가는것때문에 16kb 이하로 제한을 둠.
+> Execute 함수 한개만 존재
 
+```C#
+//일반적인 잡처리
+[BurstCompile]
+public partial struct NormalJob : IJobEntity
+{  
+    public float deltaTime;
 
-IJob: 작업 시스템 스케줄러가 결정하는 모든 스레드 또는 코어에서 실행되는 작업을 만듭니다.
-IJobParallelFor: 의 요소를 처리하기 위해 여러 스레드에서 병렬로 실행할 수 있는 작업을 만듭니다 NativeContainer.
-JobHandle: 예약된 작업에 액세스하기 위한 핸들입니다. JobHandle인스턴스를 사용하여 작업 간의 종속성을 지정할 수도 있습니다 .
+    public void Execute(DOTSRuleAspect dOTSRuleAspect)
+    {
+        //moveToPositionAspect.CheckFunc(SystemAPI.Time.DeltaTime);//엑세스안됨
+        dOTSRuleAspect.CheckFunc(deltaTime);//외부에서 설정해서 집어넣을것
+    }
+}
+```
 
 ---
+# 그외에 알아도 좋은 것들 (정리안된 구역)
 
-# 그외에 알아야 될것들
+## 게임오브젝트에 있는 태그처럼 하는방법. 비어있는 IComponentData 제작
+1. 태그 컴포넌트 IComponentData를 상속하되 안에는 아무것도 안씀
+2. 개념적으로 태그 구성 요소는 GameObject 태그 와 유사한 목적을 수행하며 태그 구성 요소 가 있는지 여부에 따라 엔터티를 필터링할 수 있기 때문에 쿼리에 유용
+```C#
+public struct TagComponent : IComponentData
+{
+}
+```
 
-세계
+## 월드(세계)(중요)
+월드는 엔티티들의 집합체이다. 엔티티의 ID 번호는 월드에서 유니크하게 존재함
+월드는 엔티티매니저 구조를 가지고 있다. 월드에서 엔티티매니저를 사용하여 생성, 파괴, 수정을 할수 있다.
+월드는 여러 시스템들을 소유하며, 보통 동일한 월드내의 엔티티에만 접근한다.
+추가적으로 월드내의 엔티티 집합에서 동일한 컴포넌트 타입들은 하나의 아키텍쳐에 함께 저장되고, 프로그램의 컴포넌트가 메모리에서 구성되는 방식을 결정.
 
-아키텍쳐
+## 아키텍쳐(원형)(중요)
+0. 동일한 컴포넌트들 집합을 가진 월드의 모든 엔티티는 아키텍쳐에 함께 저장.
+1. 엔티티에서 컴포넌트를 추가, 제거하면 월드가 EntityManager의 엔티티를 적절한 아키텍처로 이동.
+2. 예를 들어 엔티티에 컴포넌트 A, B, C가 있고 해당 B 컴포넌트를 제거하면 EntityManager에서 해당 엔티티를 컴포넌트 유형 A, C가 있는 아키턱쳐로 이동.
+3. 이러한 아키텍쳐가 없으면 EntityManager에서 생성합니다.
+4. 월드의 엔티티 중에 A, B를 가지고 있는 컴포넌트가 다수일 경우. 컴포넌트 A, B가 있는 엔티티들의 아키텍처는 하나이며 같은 아키턱쳐를 공유함.
+5. 아키텍처는 월드가 파괴될 때만 파괴됩니다.
+6. 엔터티의 원형 기반 구성은 구성 요소 유형별로 엔터티를 쿼리하는 것이 효율적이라는 것을 의미한다. 
+7. 예를 들어 컴포넌트들이 A와 B인 모든 엔터티를 찾으려는 경우 해당 구성 요소 유형이 있는 모든 원형을 찾을 수 있다. 
+8. 이는 모든 개별 엔터티를 검색하는 것보다 더 효율적임. 
+9. 세계의 기존 원형 세트는 프로그램 수명 초기에 안정화되는 경향이 있으므로 더 빠른 성능을 얻기 위해 쿼리를 캐시를 추천.
 
-SystemAPI
-데이터 반복 : 쿼리와 일치하는 엔터티당 데이터를 검색합니다.
-쿼리 작성 : 작업을 예약하거나 해당 쿼리에 대한 정보를 검색하는 데 사용할 수 있는 캐시된 EntityQuery 를 가져옵니다.=> 캐시가 맞아보암
-데이터 액세스 : 구성 요소 데이터, 버퍼 및 EntityStorageInfo 를 가져옵니다 .
-싱글톤 액세스 : 싱글 톤 이라고도 하는 데이터의 단일 인스턴스를 찾습니다 . 
-SystemAPI메서드는 시스템에 캐시되어 OnCreate호출 .Update전에 호출됩니다. 또한 이러한 메서드를 호출하면 ECS는 조회 액세스 권한을 얻기 전에 호출이 동기화되는지 확인합니다
 
+## SystemAPI
+1. 데이터 반복 : 쿼리와 일치하는 엔터티당 데이터를 검색합니다.
+2. 쿼리 작성 : 작업을 예약하거나 해당 쿼리에 대한 정보를 검색하는 데 사용할 수 있는 캐시된 EntityQuery 를 가져옵니다.=> 캐싱이 맞아보임
+3. 데이터 액세스 : 구성 요소 데이터, 버퍼 및 EntityStorageInfo 를 가져옵니다 .
+4. 싱글톤 액세스 : 싱글 톤 이라고도 하는 데이터의 단일 인스턴스를 찾습니다 . 
+5. SystemAPI메서드는 시스템에 캐시되어 OnCreate호출 .Update전에 호출됩니다. 또한 이러한 메서드를 호출하면 ECS는 조회 액세스 권한을 얻기 전에 호출이 동기화되는지 확인합니다
+6. 시스템에 돌아가는 모든건 메인스레드에서 돌아가고 시스템을 사용하여 작업을 예약할수 있고 해당작업은 스레드에서 실행됨
+7. 시스템의 메서드는 프레임당 한 번 실행
+8. 시스템을 생성하는 부트스트래핑 프로세스라고 하는 별개의 프로세스가 존재
+9. 시스템 위치도 조절가능 UpdateAfter
+10. 시스템은 2가지로 구성요소데이터를 수정, 논리를 저장.
+11. 버스트는 밸류타입에만 가능하고 참조타입은 불가능
+12. 시스템은 한 세계 의 엔터티만 처리할 수 있으므로 시스템은 특정 세계와 연결됩니다. 속성을 사용 World하여 시스템이 연결된 세계를 반환할 수 있습니다.
+13. 한 개의 월드는 하나의 엔티티매니저 구조를 가지고 있다.
 
-컴포넌트 데이터반복 
+## 엔터티를 만들거나 삭제할 때 이는 애플리케이션의 성능에 영향을 미치는 구조적 변경 입니다. 자세한 내용은 구조 변경 문서를 참조.
+
+## 컴포넌트 데이터반복 
 ```C#
 //SystemAPI.Query
- public void OnUpdate(ref SystemState state)
-    {
-     float deltaTime = SystemAPI.Time.DeltaTime;
+public void OnUpdate(ref SystemState state)
+{
+    float deltaTime = SystemAPI.Time.DeltaTime;
 
-     foreach (var (transform, speed) in SystemAPI.Query<RefRW<LocalToWorldTransform>, RefRO<RotationSpeed>>())
-         transform.ValueRW.Value = transform.ValueRO.Value.RotateY(speed.ValueRO.RadiansPerSecond * deltaTime);
-    }
+    foreach (var (transform, speed) in SystemAPI.Query<RefRW<LocalToWorldTransform>, RefRO<RotationSpeed>>())
+        transform.ValueRW.Value = transform.ValueRO.Value.RotateY(speed.ValueRO.RadiansPerSecond * deltaTime);
+}
 //foreach
 foreach (var (transform, speed, entity) in SystemAPI.Query<RefRW<LocalToWorldTransform>, RefRO<RotationSpeed>>().WithEntityAccess())
 {
     // Do stuff;
 }
-```
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  
-
+```  
 
 ## EntityCommandBuffer
-변경 사항을 즉시 수행하는 대신 엔터티 데이터 변경 사항을 대기열에 추가하려면 EntityCommandBuffer스레드로부터 안전한 명령 버퍼를 생성하는 구조체를 사용할 수 있습니다. 이는 작업이 완료되는 동안 구조 변경 을 연기하려는 경우에 유용합니다 .
+변경 사항을 즉시 수행하는 대신 엔터티 데이터 변경 사항을 대기열에 추가하려면 EntityCommandBuffer스레드로부터 안전한 명령 버퍼를 생성하는 구조체를 사용할 수 있습니다. 
+
+이는 작업이 완료되는 동안 구조변경을 연기하려는 경우에 유용합니다.
+
 고로 잡에서 특정작업을 예약하기. 작업할때 딱좋음
 
-
 # 나중에 테스트 및 추가연구 진행해볼것
-구조처리
-피직스 함수,
-엔티티를 가져와서 채크하는 방식 체크 (중간 연결구역이 최소2개이상 띄어져있어서 어딘지 잘모름)
-익스큐트애 들어가는 위치 체크
-익스큐트랑 foreach랑 어디가 비슷해보이는데 좀더 체크
-스트리밍장면이라는 기능이 있는데 설명 대로면 비동기씩 나오는방식같다
-그러면...10개를 하면 나중에 다시 그려도 10개인지 테슽 ==========
+1. 구조처리
+2. 피직스 함수
+3. 엔티티를 가져와서 채크하는 방식 체크 (중간 연결구역이 최소2개이상 띄어져있어서 어딘지 잘모름)
+4. 익스큐트애 들어가는 위치 체크
+5. 익스큐트랑 foreach랑 어디가 비슷해보이는데 좀더 체크
+6. 스트리밍장면이라는 기능이 있는데 설명 대로면 비동기씩 나오는방식같다
+7. 그러면...10개를 하면 나중에 다시 그려도 10개인지 테슽 ==========
+
+
+## System 비교
+> ### SystemBase 
+> Class -managed
+> sumpler, runs on main thread cannot use Burst;
+> 간단하고 심플하게 제작가능, 단순사례는 이걸로
+
+> ### ISystem
+> Struct - unmanaged;
+> can use burst, extremely fast but slightly more complex
+> 사용하기 좀 까다롭지만 높은 성능을 얻을수 있음 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-참고자료
+참고자료 (내가 틀렷을게 많을거 같다. 자세하고 정확한건 DOTS Guide 깃허브를 보는걸 추천)
 
 https://docs.unity3d.com/Packages/com.unity.entities@1.0/manual/index.html
 
