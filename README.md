@@ -176,7 +176,7 @@ ISystem(partial Struct) 언매니지드 메모리 GC안 쌓임. Burst 가능
 IJobEntity(partial Struct)
 
 ## Burst
-[BurstCompile] (어트리뷰트) System, System안 함수들, Job에 부착 끝.
+[BurstCompile] (어트리뷰트) System, System안 함수들, Job에 부착
 
 자세한건 https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/index.html
 
@@ -190,6 +190,8 @@ EntityManager = GameObject.Func(기능들의 모집. 매니저로 컴포넌트�
 SystemAPI = UnityEngine(Time.time 같은 메인스레드에서 돌리는 종류들이 있는 집합소)
 
 float2, float3 = Vector2, Vector3 (형식이 달라짐)
+
+Mathf = math (System Math하고 이름이 같기때문에 소문자로 한듯)
 
 ---
 
@@ -210,44 +212,57 @@ float2, float3 = Vector2, Vector3 (형식이 달라짐)
 
 ---
 
-## 각 구성품에 대해 알아둬야할것
+## 각 구성품에 대해 알아둬야할것 (※코드첨부)
 
-> MonoBehaviour
->> 베이킹할 대상이다. 데이터만 선언해주기
++ ### MonoBehaviour
+> 베이킹할 대상이다. 데이터만 선언해주기
 
-> IComponentData
->> MonoBehavior안의 데이터를 Baker를 통해 집어넣는 데이터만 존재하는 형태이다. 함수쓰지 말기
++ ### IComponentData
+> MonoBehavior안의 데이터를 Baker를 통해 집어넣는 데이터만 존재하는 형태이다. 함수쓰지 말기
 
-> Baker
->> MonoBehavior안의 데이터를 IComponentData에 매핑하는 과정을 한다. 수동적으로 일일히 만듬
++ ### Baker
+> MonoBehavior안의 데이터를 IComponentData에 매핑하는 과정을 한다. 수동적으로 일일히 만듬
 
-> IAspect
->>
-
-
-> SystemBase, SystemI
->>
++ ### IAspect
+> IComponentData가 데이터만 집어넣는다면 IAspect는 기능만 집어넣는다. (기능, 펑션, 메세지, 메소드)
+> 룰이 있다
 
 
++ ### SystemBase, SystemI
+> 로직이 관리되는 구역이다.
+> 메인스레드에서 작동됨.
+> 
 
 
 
 
+> ### System이벤트 생명주기
 
 ![SystemEventOrder](https://user-images.githubusercontent.com/44671731/206775274-e1c8bda1-63fc-47bf-9344-9b37f446eb25.png)
 
-OnCreate: Called when ECS creates a system.
-OnStartRunning: Called before the first call to OnUpdate and whenever a system resumes running.
-OnUpdate: Called every frame as long as the system has work to do. For more information on what determines when a system has work to do, see ShouldRunSystem.
-OnStopRunning: Called before OnDestroy. Also called whenever the system stops running, which happens if no entities match the system's RequireForUpdate, or if you've set the system's Enabledproperty to false. If you've not specified a RequireForUpdate, the system runs continuously unless disabled or destroyed.
-OnDestroy: Called when ECS destroys a system.
+1. OnCreate: ECS가 시스템에서 생성될때 호출
+2. OnStartRunning: Called before the first call to OnUpdate and whenever a system resumes running.
+3. OnUpdate: Called every frame as long as the system has work to do. For more information on what determines when a system has work to do, see ShouldRunSystem.
+4. OnStopRunning: Called before OnDestroy. Also called whenever the system stops running, which happens if no entities match the system's RequireForUpdate, or if you've set the system's Enabledproperty to false. If you've not specified a RequireForUpdate, the system runs continuously unless disabled or destroyed.
+5. OnDestroy: ECS가 시스템에서 파괴될때 호출
 
 
++ ### Job, IJobEntity  IJobChunck
+> Job시스템에 일감을 주기 위한 형태
+> 멀티스
 
+
+IJob: 작업 시스템 스케줄러가 결정하는 모든 스레드 또는 코어에서 실행되는 작업을 만듭니다.
+IJobParallelFor: 의 요소를 처리하기 위해 여러 스레드에서 병렬로 실행할 수 있는 작업을 만듭니다 NativeContainer.
+JobHandle: 예약된 작업에 액세스하기 위한 핸들입니다. JobHandle인스턴스를 사용하여 작업 간의 종속성을 지정할 수도 있습니다 .
 
 ---
 
+# 그외에 알아야 될것들
 
+세계
+
+아키텍쳐
 
 SystemAPI
 데이터 반복 : 쿼리와 일치하는 엔터티당 데이터를 검색합니다.
@@ -278,9 +293,7 @@ foreach (var (transform, speed, entity) in SystemAPI.Query<RefRW<LocalToWorldTra
 
 
 
-IJob: 작업 시스템 스케줄러가 결정하는 모든 스레드 또는 코어에서 실행되는 작업을 만듭니다.
-IJobParallelFor: 의 요소를 처리하기 위해 여러 스레드에서 병렬로 실행할 수 있는 작업을 만듭니다 NativeContainer.
-JobHandle: 예약된 작업에 액세스하기 위한 핸들입니다. JobHandle인스턴스를 사용하여 작업 간의 종속성을 지정할 수도 있습니다 .
+
 
 
 
