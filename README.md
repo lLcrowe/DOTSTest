@@ -28,7 +28,7 @@ https://github.com/Unity-Technologies/EntityComponentSystemSamples/tree/master/D
 4. 성능 위해서는 Isystem을 채택하고 작업하기. GC안 쌓이고 속도도 높으며, burst로 컴파일러 최적화도 가능하다.
 5. DOTS Guide 깃허브를 보는걸 추천. 지금 정리한건 필요한 종류만 빠르게 쓸려고 정리해놓은 상태이며 정확하지 않은게 존재.
 6. 메뉴얼을 무조건 봐라. 따로 정리를 해났지만 가이드라인을 안보고 현 글을 의존하는건 위험.
-~~아 MonoBehaviour를 ECSMonoBehaviour같은 클래스를 상속받으면 자동적으로 처리하게 만들어달라~~
++ ~~아 MonoBehaviour를 ECSMonoBehaviour같은 클래스를 상속받으면 자동적으로 처리하게 만들어달라~~
 
 
 ## 주의사항 
