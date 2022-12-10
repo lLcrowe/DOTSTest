@@ -197,15 +197,13 @@ Mathf = math (System Math하고 이름이 같기때문에 소문자로 한듯)
 
 ---
 
-# 현재 메뉴얼한 코드구조
-유니티메뉴얼이나 유튜브에서 찾아보니 대부분 따로 클래스파일을 만들어서 작업한다.
-
-하지만 난 많은 파일이 생기는걸 싫어하기떄문에 하나의 클래스파일에 넣는방법이 좋다고 생각함.
-
-(따로 분리시 6개의 파일을 생성해야한다.)
+> # 현재 메뉴얼한 코드구조
++ 유니티메뉴얼이나 유튜브에서 찾아보니 대부분 따로 클래스파일을 만들어서 작업한다.
++ 하지만 난 많은 파일이 생기는걸 싫어하기떄문에 하나의 클래스파일에 넣는방법이 좋다고 생각함.
++ (따로 분리시 6개의 파일을 생성해야한다.)
 
 ---
-## 클래스 파일 안의 작성순서
+> ## 클래스 파일 안의 작성순서
 1. MonoBehaviour          => 기본적으로 유니티를 다루던 클래스//데이터생성해주기
 2. IComponentData         => 데이터만 존재하는 형태
 3. Baker                  => MonoBehaviour에 있는 데이터를 IComponentData에 베이킹해주는 클래스
@@ -217,8 +215,8 @@ Mathf = math (System Math하고 이름이 같기때문에 소문자로 한듯)
 
 ## 각 구성품에 대해 알아둬야할것 (※코드첨부)
 
-+ ### MonoBehaviour
-> 베이킹할 대상이다. 데이터만 선언해주기
+> ### MonoBehaviour
++ 베이킹할 대상이다. 데이터만 선언해주기
 ```C#
 public class DOTSRuleScript : MonoBehaviour
 {
@@ -232,8 +230,8 @@ public class DOTSRuleScript : MonoBehaviour
 }
 ```
 
-+ ### IComponentData
-> MonoBehavior안의 데이터를 Baker를 통해 집어넣는 데이터만 존재하는 형태이다. 함수쓰지 말기
+> ### IComponentData
++ MonoBehavior안의 데이터를 Baker를 통해 집어넣는 데이터만 존재하는 형태이다. 함수쓰지 말기
 ```C#
 public struct DOTSRuleData : IComponentData, IEnableableComponent
 {
@@ -247,10 +245,10 @@ public struct DOTSRuleData : IComponentData, IEnableableComponent
 }
 ```
 
-+ ### Baker
-> MonoBehavior안의 데이터를 IComponentData에 매핑하는 과정을 한다. 수동적으로 일일히 만듬
-> 모노비헤이비어에서 가진 걸 데이터에 가져와서 대입
-> 마지막에 컴포넌트 추가할때 Null이 가능한 객체는 불가
+> ### Baker
++ MonoBehavior안의 데이터를 IComponentData에 매핑하는 과정을 한다. 수동적으로 일일히 만듬
++ 모노비헤이비어에서 가진 걸 데이터에 가져와서 대입
++ 마지막에 컴포넌트 추가할때 Null이 가능한 객체는 불가
 ```C#
 public class DOTSRuleBaker : Baker<DOTSRuleScript>
 {
@@ -275,18 +273,18 @@ public class DOTSRuleBaker : Baker<DOTSRuleScript>
 }
 ```
 
-+ ### IAspect
-> IComponentData가 데이터만 집어넣는다면 IAspect는 기능만 집어넣는다. (기능, 펑션, 메세지, 메소드)
-> IAspect는 CPU에 가장 적합한 데이터레이아웃을 유지할수 있게 해주며 유지관리할수 있는 인터페이스를 제공
-> IAspect는 시스템에서 컴포넌트 코드를 구성하고 쿼리를 단순화하는 데 유용.
-> 룰1) 파라미터값은 최대 7개로 제한. (T1, T2, ~~~, T7)(여러개 쓸려면 여러 다른 Aspect를 만들어  담아주기)
-> 룰2) RefRO//오직읽기 RefRW//읽기쓰기
-> 룰3) readonly partial
-> 룰4) SystemAPI를 내부에서 사용불가한 지역
-> 룰5) IAspect구조는 적어도 하나 이상의 RefRO,RefRW 형식, 다른 IAspect를 집어넣어야됨. 안넣으면 에러
-> 룰6) IAspect내부에서 SystemAPI.Time은 작동하지 않음 (고로 파라미터로 외부에서 받아와 캐싱을 권장)
-> 룰7) [ReadOnly] 밑에 처럼하면 RefRW => RefRO로 변함
-> 룰8) [Optional] 구성요소가 존재하는지 확인할수 있게 변함(리드온리)
+> ### IAspect
++ IComponentData가 데이터만 집어넣는다면 IAspect는 기능만 집어넣는다. (기능, 펑션, 메세지, 메소드)
++ IAspect는 CPU에 가장 적합한 데이터레이아웃을 유지할수 있게 해주며 유지관리할수 있는 인터페이스를 제공
++ IAspect는 시스템에서 컴포넌트 코드를 구성하고 쿼리를 단순화하는 데 유용.
++ 룰1) 파라미터값은 최대 7개로 제한. (T1, T2, ~~~, T7)(여러개 쓸려면 여러 다른 Aspect를 만들어  담아주기)
++ 룰2) RefRO//오직읽기 RefRW//읽기쓰기
++ 룰3) readonly partial
++ 룰4) SystemAPI를 내부에서 사용불가한 지역
++ 룰5) IAspect구조는 적어도 하나 이상의 RefRO,RefRW 형식, 다른 IAspect를 집어넣어야됨. 안넣으면 에러
++ 룰6) IAspect내부에서 SystemAPI.Time은 작동하지 않음 (고로 파라미터로 외부에서 받아와 캐싱을 권장)
++ 룰7) [ReadOnly] 밑에 처럼하면 RefRW => RefRO로 변함
++ 룰8) [Optional] 구성요소가 존재하는지 확인할수 있게 변함(리드온리)
 ```C#
 public readonly partial struct DOTSRuleAspect : IAspect
 {
@@ -312,25 +310,16 @@ public readonly partial struct DOTSRuleAspect : IAspect
 }
 ```
 
-+ ### SystemBase, SystemI
-> 로직이 관리되는 구역이다.
-> 룰1) partial
-> 룰2) 메인스레드에서 작동.
-> 이 구역에서 Job을 생성해서 처리 가능. (추천 Run, Schedule, ScheduleParallel)
-> state.EntityManager 안에는 GameObject의 함수들이 존재한다. Add, Remove, Set, Enalbe 등 (MonoBehavior. 에서 MonoBehavior()로 변경된느낌)
-> SetComponentEnabled는 컴폰너트를 추가 및 제거하는 것과 달리 구조적변화를 일으키지 않음.(성능에 문제)
-> ECS는 엔터티가 엔터티쿼리와 일치하는지 확인할 때 비활성화된 컴포넌트를 엔터티에 해당 컴포넌트가 없는 것처럼 처리
-> 엔티티 구조변경했을시 성능이 떨어짐. (Create, Destroy, Add, Remove)
-
-> state.EntityMaanger는 DOTS 특성으로 매니저에서 모든걸 가지며 모든걸 처리하는 과정을 담당함.
-
-> ### SystemBase (관리되는 구성요소)
-> 비관리 구성요소와 달리 관리 구성요소는 모든 유형의 속성을 저장할 수 있음. 
-> 저장 및 액세스에 더 많은 리소스를 사용하고 다음과 같은 제한사항이 있음.
-> Job에서는 액세스할 수 없음.
-> 버스트 컴파일 코드 에서는 사용할 수 없음.
-> 가비지 수집이 필요합니다.
-> 직렬화를 위해 매개변수가 없는 생성자를 포함해야함.
+> ### SystemBase, SystemI
++ 로직이 관리되는 구역이다.
++ 룰1) partial
++ 룰2) 메인스레드에서 작동.
++ 이 구역에서 Job을 생성해서 처리 가능. (추천 Run, Schedule, ScheduleParallel)
++ state.EntityManager 안에는 GameObject의 함수들이 존재한다. Add, Remove, Set, Enalbe 등 (MonoBehavior. 에서 MonoBehavior()로 변경된느낌)
++ SetComponentEnabled는 컴폰너트를 추가 및 제거하는 것과 달리 구조적변화를 일으키지 않음.(성능에 문제)
++ ECS는 엔터티가 엔터티쿼리와 일치하는지 확인할 때 비활성화된 컴포넌트를 엔터티에 해당 컴포넌트가 없는 것처럼 처리
++ 엔티티 구조변경했을시 성능이 떨어짐. (Create, Destroy, Add, Remove)
++ state.EntityManager는 DOTS 특성으로 매니저에서 모든걸 가지며 모든걸 처리하는 과정을 담당함.
 
 > ### System이벤트 생명주기
 
@@ -449,15 +438,15 @@ public partial struct DOTSRuleISystem : ISystem
 }
 ```
 
-+ ### IJob, IJobEntity(추천), IJobChunck
-> Job시스템에 일감을 주기 위한 형태
-> 이리저리봐도 JobEntity가 제일 괜찮아보임
-> 룰1) 파라미터값은 최대 7개로 제한. (T1, T2, ~~~, T7)(여러개 쓸려면 여러 다른 Aspect를 만들어  담아주기)
-> 룰2) Job 내부에서 SystemAPI.Time은 작동하지 않음 (고로 파라미터로 외부에서 받아와 캐싱을 권장)
-> 룰3) partial
-> 룰4) SystemAPI를 내부에서 사용불가한 지역
-> 성능을 더 원하면 IJobChunk를 쓸것. struct형태가 16kb 초과되면 자체적으로 돌아가면서 힙영역에 들어가는것때문에 16kb 이하로 제한을 둠.
-> Execute 함수 한개만 존재
+> ### IJob, IJobEntity(추천), IJobChunck
++ Job시스템에 일감을 주기 위한 형태
++ 이리저리봐도 JobEntity가 제일 괜찮아보임
++ 룰1) 파라미터값은 최대 7개로 제한. (T1, T2, ~~~, T7)(여러개 쓸려면 여러 다른 Aspect를 만들어  담아주기)
++ 룰2) Job 내부에서 SystemAPI.Time은 작동하지 않음 (고로 파라미터로 외부에서 받아와 캐싱을 권장)
++ 룰3) partial
++ 룰4) SystemAPI를 내부에서 사용불가한 지역
++ 성능을 더 원하면 IJobChunk를 쓸것. struct형태가 16kb 초과되면 자체적으로 돌아가면서 힙영역에 들어가는것때문에 16kb 이하로 제한.
++ Execute 함수 한개만 존재
 
 ```C#
 //일반적인 잡처리
@@ -479,50 +468,50 @@ public partial struct NormalJob : IJobEntity
 
 ## 게임오브젝트에 있는 태그처럼 하는방법. 비어있는 IComponentData 제작
 1. 태그 컴포넌트 IComponentData를 상속하되 안에는 아무것도 안씀
-2. 개념적으로 태그 구성 요소는 GameObject 태그 와 유사한 목적을 수행하며 태그 구성 요소 가 있는지 여부에 따라 엔터티를 필터링할 수 있기 때문에 쿼리에 유용
+2. 개념적으로 태그 구성 요소는 GameObject 태그 와 유사한 목적을 수행하며 태그 컴포넌트가 있는지 여부에 따라 엔터티를 필터링
 ```C#
 public struct TagComponent : IComponentData
 {
 }
 ```
 
-## 월드(세계)(중요)
-월드는 엔티티들의 집합체이다. 엔티티의 ID 번호는 월드에서 유니크하게 존재함
-월드는 엔티티매니저 구조를 가지고 있다. 월드에서 엔티티매니저를 사용하여 생성, 파괴, 수정을 할수 있다.
-월드는 여러 시스템들을 소유하며, 보통 동일한 월드내의 엔티티에만 접근한다.
-추가적으로 월드내의 엔티티 집합에서 동일한 컴포넌트 타입들은 하나의 아키텍쳐에 함께 저장되고, 프로그램의 컴포넌트가 메모리에서 구성되는 방식을 결정.
+> ## 월드(세계)(중요)
++ 월드는 엔티티들의 집합체이다. 엔티티의 ID 번호는 월드에서 유니크하게 존재함
++ 월드는 엔티티매니저 구조를 가지고 있다. 월드에서 엔티티매니저를 사용하여 생성, 파괴, 수정을 할수 있다.
++ 월드는 여러 시스템들을 소유하며, 보통 동일한 월드내의 엔티티에만 접근한다.
++ 추가적으로 월드내의 엔티티 집합에서 동일한 컴포넌트 타입들은 하나의 아키텍쳐에 함께 저장되고, 프로그램의 컴포넌트가 메모리에서 구성되는 방식을 결정.
 
-## 아키텍쳐(원형)(중요)
-0. 동일한 컴포넌트들 집합을 가진 월드의 모든 엔티티는 아키텍쳐에 함께 저장.
-1. 엔티티에서 컴포넌트를 추가, 제거하면 월드가 EntityManager의 엔티티를 적절한 아키텍처로 이동.
-2. 예를 들어 엔티티에 컴포넌트 A, B, C가 있고 해당 B 컴포넌트를 제거하면 EntityManager에서 해당 엔티티를 컴포넌트 유형 A, C가 있는 아키턱쳐로 이동.
-3. 이러한 아키텍쳐가 없으면 EntityManager에서 생성합니다.
-4. 월드의 엔티티 중에 A, B를 가지고 있는 컴포넌트가 다수일 경우. 컴포넌트 A, B가 있는 엔티티들의 아키텍처는 하나이며 같은 아키턱쳐를 공유함.
-5. 아키텍처는 월드가 파괴될 때만 파괴됩니다.
-6. 엔터티의 원형 기반 구성은 구성 요소 유형별로 엔터티를 쿼리하는 것이 효율적이라는 것을 의미한다. 
-7. 예를 들어 컴포넌트들이 A와 B인 모든 엔터티를 찾으려는 경우 해당 구성 요소 유형이 있는 모든 원형을 찾을 수 있다. 
-8. 이는 모든 개별 엔터티를 검색하는 것보다 더 효율적임. 
-9. 세계의 기존 원형 세트는 프로그램 수명 초기에 안정화되는 경향이 있으므로 더 빠른 성능을 얻기 위해 쿼리를 캐시를 추천.
+> ## 아키텍쳐(원형)(중요)
++ 동일한 컴포넌트들 집합을 가진 월드의 모든 엔티티는 아키텍쳐에 함께 저장.
++ 엔티티에서 컴포넌트를 추가, 제거하면 월드가 EntityManager의 엔티티를 적절한 아키텍처로 이동.
++ 예를 들어 엔티티에 컴포넌트 A, B, C가 있고 해당 B 컴포넌트를 제거하면 EntityManager에서 해당 엔티티를 컴포넌트 유형 A, C가 있는 아키턱쳐로 이동.
++ 이러한 아키텍쳐가 없으면 EntityManager에서 생성합니다.
++ 월드의 엔티티 중에 A, B를 가지고 있는 컴포넌트가 다수일 경우. 컴포넌트 A, B가 있는 엔티티들의 아키텍처는 하나이며 같은 아키턱쳐를 공유함.
++ 아키텍처는 월드가 파괴될 때만 파괴됩니다.
++ 엔터티의 원형 기반 구성은 구성 요소 유형별로 엔터티를 쿼리하는 것이 효율적이라는 것을 의미한다. 
++ 예를 들어 컴포넌트들이 A와 B인 모든 엔터티를 찾으려는 경우 해당 구성 요소 유형이 있는 모든 원형을 찾을 수 있다. 
++ 이는 모든 개별 엔터티를 검색하는 것보다 더 효율적임. 
++ 세계의 기존 원형 세트는 프로그램 수명 초기에 안정화되는 경향이 있으므로 더 빠른 성능을 얻기 위해 쿼리를 캐시를 추천.
 
 
-## SystemAPI
-1. 데이터 반복 : 쿼리와 일치하는 엔터티당 데이터를 검색합니다.
-2. 쿼리 작성 : 작업을 예약하거나 해당 쿼리에 대한 정보를 검색하는 데 사용할 수 있는 캐시된 EntityQuery 를 가져옵니다.=> 캐싱이 맞아보임
-3. 데이터 액세스 : 구성 요소 데이터, 버퍼 및 EntityStorageInfo 를 가져옵니다 .
-4. 싱글톤 액세스 : 싱글 톤 이라고도 하는 데이터의 단일 인스턴스를 찾습니다 . 
-5. SystemAPI메서드는 시스템에 캐시되어 OnCreate호출 .Update전에 호출됩니다. 또한 이러한 메서드를 호출하면 ECS는 조회 액세스 권한을 얻기 전에 호출이 동기화되는지 확인합니다
-6. 시스템에 돌아가는 모든건 메인스레드에서 돌아가고 시스템을 사용하여 작업을 예약할수 있고 해당작업은 스레드에서 실행됨
-7. 시스템의 메서드는 프레임당 한 번 실행
-8. 시스템을 생성하는 부트스트래핑 프로세스라고 하는 별개의 프로세스가 존재
-9. 시스템 위치도 조절가능 UpdateAfter
-10. 시스템은 2가지로 구성요소데이터를 수정, 논리를 저장.
-11. 버스트는 밸류타입에만 가능하고 참조타입은 불가능
-12. 시스템은 한 세계 의 엔터티만 처리할 수 있으므로 시스템은 특정 세계와 연결됩니다. 속성을 사용 World하여 시스템이 연결된 세계를 반환할 수 있습니다.
-13. 한 개의 월드는 하나의 엔티티매니저 구조를 가지고 있다.
+> ## SystemAPI
++ 데이터 반복 : 쿼리와 일치하는 엔터티당 데이터를 검색합니다.
++ 쿼리 작성 : 작업을 예약하거나 해당 쿼리에 대한 정보를 검색하는 데 사용할 수 있는 캐시된 EntityQuery 를 가져옵니다.=> 캐싱이 맞아보임
++ 데이터 액세스 : 구성 요소 데이터, 버퍼 및 EntityStorageInfo 를 가져옵니다 .
++ 싱글톤 액세스 : 싱글 톤 이라고도 하는 데이터의 단일 인스턴스를 찾습니다 . 
++ SystemAPI메서드는 시스템에 캐시되어 OnCreate호출 .Update전에 호출됩니다. 또한 이러한 메서드를 호출하면 ECS는 조회 액세스 권한을 얻기 전에 호출이 동기화되는지 확인합니다
++ 시스템에 돌아가는 모든건 메인스레드에서 돌아가고 시스템을 사용하여 작업을 예약할수 있고 해당작업은 스레드에서 실행됨
++ 시스템의 메서드는 프레임당 한 번 실행
++ 시스템을 생성하는 부트스트래핑 프로세스라고 하는 별개의 프로세스가 존재
++ 시스템 위치도 조절가능 UpdateAfter
++ 시스템은 2가지로 구성요소데이터를 수정, 논리를 저장.
++ 버스트는 밸류타입에만 가능하고 참조타입은 불가능
++ 시스템은 한 세계 의 엔터티만 처리할 수 있으므로 시스템은 특정 세계와 연결됩니다. 속성을 사용 World하여 시스템이 연결된 세계를 반환할 수 있습니다.
++ 한 개의 월드는 하나의 엔티티매니저 구조를 가지고 있다.
 
 ## 엔터티를 만들거나 삭제할 때 이는 애플리케이션의 성능에 영향을 미치는 구조적 변경 입니다. 자세한 내용은 구조 변경 문서를 참조.
 
-## 컴포넌트 데이터반복 
+> ## 컴포넌트 데이터반복 
 ```C#
 //SystemAPI.Query
 public void OnUpdate(ref SystemState state)
@@ -539,12 +528,10 @@ foreach (var (transform, speed, entity) in SystemAPI.Query<RefRW<LocalToWorldTra
 }
 ```  
 
-## EntityCommandBuffer
-변경 사항을 즉시 수행하는 대신 엔터티 데이터 변경 사항을 대기열에 추가하려면 EntityCommandBuffer스레드로부터 안전한 명령 버퍼를 생성하는 구조체를 사용할 수 있습니다. 
-
-이는 작업이 완료되는 동안 구조변경을 연기하려는 경우에 유용합니다.
-
-고로 잡에서 특정작업을 예약하기. 작업할때 딱좋음
+> ## EntityCommandBuffer
++ 변경 사항을 즉시 수행하는 대신 엔터티 데이터 변경 사항을 대기열에 추가하려면 EntityCommandBuffer스레드로부터 안전한 명령 버퍼를 생성하는 구조체를 사용할 수 있습니다. 
++ 이는 작업이 완료되는 동안 구조변경을 연기하려는 경우에 유용합니다.
++ 고로 잡에서 특정작업을 예약하기. 작업할때 딱좋음
 
 # 나중에 테스트 및 추가연구 진행해볼것
 1. 구조처리
@@ -556,21 +543,8 @@ foreach (var (transform, speed, entity) in SystemAPI.Query<RefRW<LocalToWorldTra
 7. 그러면...10개를 하면 나중에 다시 그려도 10개인지 테슽 ==========
 
 
-## System 비교
-> ### SystemBase 
-> Class -managed
-> sumpler, runs on main thread cannot use Burst;
-> 간단하고 심플하게 제작가능, 단순사례는 이걸로
 
-> ### ISystem
-> Struct - unmanaged;
-> can use burst, extremely fast but slightly more complex
-> 사용하기 좀 까다롭지만 높은 성능을 얻을수 있음 
-
-
-
-참고자료 (내가 틀렷을게 많을거 같다. 자세하고 정확한건 DOTS Guide 깃허브를 보는걸 추천)
-
+## 참고자료
 https://docs.unity3d.com/Packages/com.unity.entities@1.0/manual/index.html
 
 
