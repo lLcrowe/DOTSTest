@@ -110,13 +110,13 @@ namespace lLCroweTool.Test.DOTS
         //SystemAPI를 내부에서 사용불가한 지역
 
         private readonly Entity entity;
-        //Aspect구조는 적어도 하나 이상의 RefRO,RefRW 형식,
+        //IAspect구조는 적어도 하나 이상의 RefRO,RefRW 형식,
         //다른 IAspect를 집어넣어야됨//안넣으면 에러 뺵-
 
 
 
 
-        //private readonly TransformAspect transformAspect;
+        private readonly TransformAspect transformAspect;
         //[Optional]//구성요소가 존재하는지 확인할수 있게 변함//다시확인해봐야됨//리드온리만
         private readonly RefRO<SpeedStructure> speed;
         private readonly RefRW<DOTSRuleData> dotsRuleData;
@@ -152,8 +152,6 @@ namespace lLCroweTool.Test.DOTS
         public void CheckSystemAPIFunc(RefRW<RandomStructure> randomComponent)
         {
             dotsRuleData.ValueRW.random = randomComponent.ValueRO.random;
-
-            
         }
 
     }
