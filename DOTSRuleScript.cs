@@ -58,6 +58,7 @@ namespace lLCroweTool.Test.DOTS
         public Vector3 vector3;
     }
 
+    //구조적 변경 없이 런타임에 구성 요소를 활성화 및 비활성화할 수 있는 구성 요소 유형에 대한 인터페이스입니다.
     public struct DOTSRuleData : IComponentData, IEnableableComponent
     {
         //타겟팅할 모노비헤이비어 객체에 있는 데이터와 동일하게
@@ -70,6 +71,11 @@ namespace lLCroweTool.Test.DOTS
         public float2 vector2;
         public float3 vector3;
         public int index;
+    }
+    
+    public struct SpeedStructure: IComponentData, ICleanupComponentData//이컴포넌트를 지우면 Entity가 사라짐
+    {
+        public float speed;
     }
 
 
